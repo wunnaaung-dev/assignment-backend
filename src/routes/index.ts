@@ -1,2 +1,2 @@
 export * from './auth/register'
-// export * from './auth/signin'
+export * from './auth/signin'

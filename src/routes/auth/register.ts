@@ -32,11 +32,6 @@ router.post("/api/auth/register", async (req: Request, res: Response, next: Next
             expires: Date.now() + 24 * 60 * 60 * 1000
         })
         await sendVerificationEmail(email, verificationToken)
-        // res.cookie("accessToken", accessToken, {
-        //     httpOnly: true,
-        //     secure: process.env.NODE_ENV === "production",
-        //     sameSite: "lax",
-        // });
         res.status(200).json({
             message: 'Verification email sent. Please check your inbox.',
             accessToken: accessToken
@@ -73,7 +68,7 @@ router.get("/api/auth/verify", async (req: Request, res: Response, next: NextFun
         verificationTokens.delete(token);
 
         res.status(200).json({
-            message: 'Email verified successfully.'
+            message: 'Email verified successfully. You can sign in to your account now'
         });
     } catch (error) {
         next(error);

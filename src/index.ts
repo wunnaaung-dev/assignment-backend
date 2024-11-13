@@ -2,7 +2,7 @@ import express, { Application } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors'
 import mongoose from 'mongoose';
-import { registerRouter } from './routes';
+import { registerRouter, signInRouter } from './routes';
 import { errorHandler } from './middlewares/error-handling';
 import cookieParser from 'cookie-parser';
 
@@ -20,7 +20,7 @@ app.use(
 )
 
 app.use(registerRouter)
-
+app.use(signInRouter)
 //error-handling middleware
 app.use(errorHandler)
 
