@@ -71,7 +71,7 @@ router.get("/api/auth/verify", async (req: Request, res: Response, next: NextFun
             message: 'Email verified successfully. You can sign in to your account now'
         });
     } catch (error) {
-        next(error);
+        next();
     }
 });
 export { router as registerRouter }
