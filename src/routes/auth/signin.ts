@@ -19,10 +19,7 @@ router.post("/api/auth/login", async (req: Request, res: Response, next: NextFun
         const isEqual = await verifyPassword(isUserExist.password, password)
         if(!isEqual) return next(new BadRequestError("Wrong Password"))
         res.status(200).json({
-           user: {
-            userName: isUserExist.username,
-            email: isUserExist.email
-           }
+          user_id: isUserExist._id
         })
 
     } catch (error) {

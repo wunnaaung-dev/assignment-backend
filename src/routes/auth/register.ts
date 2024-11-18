@@ -25,7 +25,6 @@ router.post("/api/auth/register", async (req: Request, res: Response, next: Next
             isEmailVerified: false
         })
         await newUser.save();
-        const accessToken = await generateAccessToken(email);
         const verificationToken = generateToken()
         verificationTokens.set(verificationToken, {
             email,
@@ -33,8 +32,7 @@ router.post("/api/auth/register", async (req: Request, res: Response, next: Next
         })
         await sendVerificationEmail(email, verificationToken)
         res.status(200).json({
-            message: 'Verification email sent. Please check your inbox.',
-            accessToken: accessToken
+            user: newUser
         });
     } catch (error) {
         next(error)

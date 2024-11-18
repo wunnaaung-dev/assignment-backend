@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { registerRouter, signInRouter } from './routes';
 import { errorHandler } from './middlewares/error-handling';
 import cookieParser from 'cookie-parser';
+import authRouter from './routes/auth/auth'
 
 dotenv.config();
 
@@ -21,6 +22,8 @@ app.use(
 
 app.use(registerRouter)
 app.use(signInRouter)
+app.use('/api/auth', authRouter)
+
 //error-handling middleware
 app.use(errorHandler)
 
