@@ -3,6 +3,8 @@ import crypto from "crypto";
 import * as OTPAuth from "otpauth";
 import { encode } from "hi-base32";
 import { User } from "../models/user";
+import { generateToken, sendVerificationEmail } from "../service/emailVerificationService";
+import { getUserWithEmail } from "../service/userService";
 
 const generateRandomBase32 = (): string => {
     const buffer = crypto.randomBytes(15);
@@ -122,4 +124,49 @@ const VerifyOTP = async (
     }
 };
 
-export default { GenerateOTP, VerifyOTP };
+interface RegisterRequest {
+    username: string
+    email: string
+    password: string
+}
+
+const verificationTokens = new Map()
+
+const RegisterUser = async(req: Request<{}, {}, RegisterRequest>, res: Response, next: NextFunction) => {
+    try {
+        const {username, email, password} = req.body
+        const newUser = User.build({
+            username: username,
+            email: email,
+            password: password,
+            isEmailVerified: false
+        })
+        await newUser.save()
+        const verificationToken = generateToken()
+        verificationTokens.set(verificationToken, {
+            email,
+            expires: Date.now() + 24 * 60 * 60 * 1000
+        })
+        await sendVerificationEmail(email, verificationToken)
+        res.status(200).json({
+            user: newUser
+        })
+    } catch (error) {
+        next(error)
+    }
+}
+
+const LoginUser = async(req: Request, res: Response, next: NextFunction) => {
+    try {
+        const {email, password} = req.body
+        const isUserExist = await getUserWithEmail(email)
+    
+        res.status(200).json({
+          user_id: isUserExist!._id
+        })
+    } catch (error) {
+        
+    }
+}
+
+export default { GenerateOTP, VerifyOTP, RegisterUser, LoginUser };

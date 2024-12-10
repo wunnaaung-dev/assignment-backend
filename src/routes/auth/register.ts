@@ -8,36 +8,36 @@ import jwt from 'jsonwebtoken'
 const router = Router()
 const verificationTokens = new Map()
 
-router.post("/api/auth/register", async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { username, email, password } = req.body
-        console.log(username, email, password)
+// router.post("/api/auth/register", async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const { username, email, password } = req.body
+//         console.log(username, email, password)
 
-        const isExistingUser = await User.findOne({ email })
-        if (isExistingUser) {
-            return next(new BadRequestError("User already exists"))
-        }
+//         const isExistingUser = await User.findOne({ email })
+//         if (isExistingUser) {
+//             return next(new BadRequestError("User already exists"))
+//         }
 
-        const newUser = User.build({
-            username: username,
-            email: email,
-            password: password,
-            isEmailVerified: false
-        })
-        await newUser.save();
-        const verificationToken = generateToken()
-        verificationTokens.set(verificationToken, {
-            email,
-            expires: Date.now() + 24 * 60 * 60 * 1000
-        })
-        await sendVerificationEmail(email, verificationToken)
-        res.status(200).json({
-            user: newUser
-        });
-    } catch (error) {
-        next(error)
-    }
-})
+//         const newUser = User.build({
+//             username: username,
+//             email: email,
+//             password: password,
+//             isEmailVerified: false
+//         })
+//         await newUser.save();
+//         const verificationToken = generateToken()
+//         verificationTokens.set(verificationToken, {
+//             email,
+//             expires: Date.now() + 24 * 60 * 60 * 1000
+//         })
+//         await sendVerificationEmail(email, verificationToken)
+//         res.status(200).json({
+//             user: newUser
+//         });
+//     } catch (error) {
+//         next(error)
+//     }
+// })
 
 router.get("/api/auth/verify", async (req: Request, res: Response, next: NextFunction) => {
     const { email, token } = req.query as { email: string; token: string };
