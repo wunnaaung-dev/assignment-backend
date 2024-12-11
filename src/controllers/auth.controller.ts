@@ -1,26 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import crypto from "crypto";
-import * as OTPAuth from "otpauth";
-import { encode } from "hi-base32";
 import { User } from "../models/user";
 import { generateToken, sendVerificationEmail } from "../service/emailVerificationService";
-import { getUserWithEmail } from "../service/userService";
+import { getUserWithEmail, updateUserEmailVerification } from "../service/userService";
+import { BadRequestError } from "../common/errors/bad-request-error";
+import { NotFoundError } from "../common/errors/not-found-error";
+import { UnauthorizedError } from "../common/errors/unauthorized-error";
+import { EmailVerificationRequest, RegisterRequest, VerifyOTPRequest } from "../types/requests";
+import { generateRandomBase32, createTOTP } from "../service/otpService";
 
-const generateRandomBase32 = (): string => {
-    const buffer = crypto.randomBytes(15);
-    return encode(buffer).replace(/=/g, "").substring(0, 24);
-};
-
-const createTOTP = (secret: string): OTPAuth.TOTP => {
-    return new OTPAuth.TOTP({
-        issuer: "brilliantportal.com",
-        label: "Brilliant Portal",
-        algorithm: "SHA1",
-        digits: 6,
-        period: 30,
-        secret: secret.toUpperCase(),
-    });
-};
+const verificationTokens = new Map()
 
 const GenerateOTP = async (
     req: Request,
@@ -32,8 +20,7 @@ const GenerateOTP = async (
 
         const user = await User.findById(user_id);
         if (!user) {
-            res.status(404).json({ status: "fail", message: "User not found" });
-            return;
+            next(new BadRequestError("User Not found"))
         }
 
         const base32_secret = generateRandomBase32();
@@ -49,8 +36,7 @@ const GenerateOTP = async (
         );
 
         if (!updatedUser) {
-            res.status(500).json({ status: "fail", message: "Failed to update OTP" });
-            return;
+            next(new Error("Failed to update OTP"))
         }
 
         res.status(200).json({
@@ -63,11 +49,6 @@ const GenerateOTP = async (
     }
 };
 
-interface VerifyOTPRequest {
-    user_id: string;
-    token: string;
-}
-
 const VerifyOTP = async (
     req: Request<{}, {}, VerifyOTPRequest>,
     res: Response,
@@ -77,43 +58,28 @@ const VerifyOTP = async (
         const { user_id, token } = req.body;
 
         if (!user_id || !token || !/^\d{6}$/.test(token)) {
-            res.status(400).json({
-                status: "fail",
-                message: "Invalid input: user_id and a 6-digit token are required"
-            });
-            return;
+            next(new BadRequestError("Invalid input: user_id and a 6-digit token are required"))
         }
 
         const user = await User.findById(user_id);
         if (!user) {
-            res.status(404).json({ status: "fail", message: "User not found" });
-            return;
+            next(new NotFoundError("User not found"))
         }
 
-        if (!user.otp_auth_secret) {
-            res.status(400).json({
-                status: "fail",
-                message: "2FA is not set up for this user"
-            });
-            return;
+        if (!user!.otp_auth_secret) {
+            next(new BadRequestError("2FA is not set up for this user"))
         }
 
-        const totp = createTOTP(user.otp_auth_secret);
+        const totp = createTOTP(user!.otp_auth_secret!);
         
-
         const isValid = totp.validate({ 
             token, 
             window: 1   
         }) !== null;
 
         if (!isValid) {
-            res.status(401).json({
-                status: "fail",
-                message: "Invalid or expired token"
-            });
-            return;
+            next(new UnauthorizedError("Invalid or expired token"))
         }
-
         res.status(200).json({
             status: "success",
             otp_valid: true,
@@ -123,14 +89,6 @@ const VerifyOTP = async (
         next(error);
     }
 };
-
-interface RegisterRequest {
-    username: string
-    email: string
-    password: string
-}
-
-const verificationTokens = new Map()
 
 const RegisterUser = async(req: Request<{}, {}, RegisterRequest>, res: Response, next: NextFunction) => {
     try {
@@ -165,8 +123,31 @@ const LoginUser = async(req: Request, res: Response, next: NextFunction) => {
           user_id: isUserExist!._id
         })
     } catch (error) {
-        
+        next(error)
     }
 }
 
-export default { GenerateOTP, VerifyOTP, RegisterUser, LoginUser };
+const VerifyEmail = async(req: Request<{}, {}, {}, EmailVerificationRequest>, res: Response, next: NextFunction) => {
+    const {email, token} = req.query
+    const verification = verificationTokens.get(token)
+    try {
+        if(!verification || verification.email !== email) {
+            return next(new BadRequestError("Invalid or expired verification token"))
+        }
+
+        if(Date.now() > verification.expires) {
+            verificationTokens.delete(token)
+            return next(new BadRequestError("Verification token has expired"))
+        }
+
+        await updateUserEmailVerification(email)
+        verificationTokens.delete(token)
+        res.status(200).json({
+            message: 'Email verified successfully. You can in to your account now'
+        })
+    } catch (error) {
+        next(error)   
+    }
+}
+
+export default { GenerateOTP, VerifyOTP, RegisterUser, LoginUser, VerifyEmail };
