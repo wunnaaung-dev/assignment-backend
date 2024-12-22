@@ -12,6 +12,8 @@ router.post("/register", isExistingUser, authController.RegisterUser)
 
 router.post("/login", isValidUser, authController.LoginUser)
 
-router.post("/verify-email", authController.VerifyEmail)
+router.get("/verify", authController.VerifyEmail)
+
+router.get("/current-user", authController.CurrentUser)
 
 export default router
